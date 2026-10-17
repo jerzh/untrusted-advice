@@ -1,0 +1,8 @@
+.venv/
+.env
+.settings/
+.settings.local.yml
+logs/*
+!logs/.gitkeep
+data/
+__pycache__/

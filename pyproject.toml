@@ -1,0 +1,26 @@
+[project]
+name = "lacontrol"
+version = "0.1.0"
+description = "Red-teaming a control protocol on LinuxArena (formerly LinuxBench), via Control Tower"
+requires-python = ">=3.13"
+dependencies = ["control-tower==6.0.0rc3"]
+
+# Registers this package as a Control Tower plugin: everything decorated under
+# lacontrol/ is addressable as `lacontrol/<name>` (e.g. --protocol lacontrol/my-protocol).
+[project.entry-points.control_tower]
+lacontrol = "lacontrol"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lacontrol"]
+
+[tool.uv]
+# control-tower is a release candidate, so prereleases must be allowed for it, but an
+# unpinned httpx then resolves to 1.0.dev*, which drops httpcore and breaks inspect-ai.
+# Match control-tower's own lockfile.
+constraint-dependencies = ["httpx<1"]
+prerelease = "if-necessary-or-explicit"
+environments = ["sys_platform == 'linux'", "sys_platform == 'darwin'"]
