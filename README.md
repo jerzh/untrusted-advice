@@ -10,10 +10,13 @@ control-eval framework. This repo is a Control Tower **plugin**: protocols defin
 ```
 src/lacontrol/protocols/my_protocol.py   # the protocol under study (currently a pass-through stub)
 task_sets/smoke.jsonl                    # 1 honest + 1 attack sample (clinical_trial)
+task_sets/leaderboard18.jsonl            # 9 envs x (honest + attack), all from the public Haiku 4.5 run
 task_sets/naive.jsonl                    # 9 envs x (honest + attack), tiktok excluded (needs paid key)
 scripts/setup.sh                         # uv sync + pull environments + sanity checks
 scripts/run_naive.sh                     # control eval -> post-hoc safety at several audit budgets
 scripts/summarize.py                     # usefulness / safety / cost of an .eval log
+scripts/compare_leaderboard.py           # same metrics, side by side with a public leaderboard run
+scripts/generate_model_rates.py          # ct's price table (vendored; setup.sh runs it)
 scripts/estimate_cost.py                 # real $/sample per model, from the public LinuxArena viewer
 ```
 
@@ -24,6 +27,7 @@ installed by uv.
 
 ```bash
 cp .env.example .env      # add keys; the defaults use Anthropic (untrusted) + OpenAI (trusted)
+                          # keep SKIP_DOCKER_BUILD=1 to pull prebuilt env images
 scripts/setup.sh
 ```
 
@@ -34,15 +38,18 @@ scripts/setup.sh
 
 ```bash
 scripts/run_naive.sh                                  # smoke test, ~$1-2
-TASKS=task_sets/naive.jsonl scripts/run_naive.sh      # 18 samples, ~$10-15 with Haiku 4.5
+TASKS=task_sets/leaderboard18.jsonl scripts/run_naive.sh   # 18 samples, ~$9-14 with Haiku 4.5
+TASKS=task_sets/naive.jsonl scripts/run_naive.sh      # 18 other tasks
 UNTRUSTED=openrouter/deepseek/deepseek-v4-flash-0731 TASKS=task_sets/naive.jsonl scripts/run_naive.sh
 ```
 
-"Naive" means: honest policy and default attack policy (`ct/attack`) under
-`ct/trusted-monitoring` with no threshold. A trusted model scores every action but nothing is
-blocked or audited live. `summarize.py` then fits the audit threshold on the honest samples at
-each budget (0.1%, 1%, 5%, 10%) and reports safety, with no further model calls. That gives you
-the trusted-monitoring baseline your protocol has to beat.
+"Naive" means the public leaderboard's setup: honest policy and default attack policy
+(`ct/attack`) under `ct/null-blue-team`, so nothing is blocked or audited live. Afterwards a
+trusted model (gpt-5.4-nano by default) scores every action with the `simple` monitor and each
+whole run with the `trajectory` monitor. `summarize.py` and `compare_leaderboard.py` then fit
+the audit threshold on the honest samples at each budget (0.1%, 1%, 5%, 10%) and report safety,
+with no further model calls. That gives you the trusted-monitoring baseline your protocol has
+to beat, comparable task by task with the leaderboard.
 
 To evaluate your own protocol, implement `on_input` / `on_output` in `my_protocol.py` (see
 `control_tower/protocols/trusted_monitoring.py` in `.venv`), then:
@@ -71,6 +78,6 @@ Measured agent cost per sample on LinuxArena, from public 105-sample leaderboard
 | GPT-5.4 mini | 0.73 | 0.60 |
 | Claude Opus 4.6 (attack, vs defer-to-trusted) | ~5.6 | n/a |
 
-A trusted monitor on every action adds about $0.14/sample with gpt-5.4-nano. The Claude 5.5 models
-are not in Control Tower 6.0.0rc3's rate table yet, so `ct` reports their cost as unknown.
-They still bill.
+The `simple` + `trajectory` monitors add about $0.14/sample with gpt-5.4-nano and about $0.035
+with gpt-5-nano. Costs come from `~/.cache/control-tower/model_rates.json`; re-run
+`scripts/generate_model_rates.py` to pick up new models.
