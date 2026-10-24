@@ -31,7 +31,7 @@ def main() -> None:
 
     path = args.path
     if path.is_dir():
-        logs = sorted(path.glob("*.eval"), key=lambda p: p.stat().st_mtime)
+        logs = sorted(path.glob("*.eval"), key=lambda p: p.stat().st_mtime)  # audit copies go in audited/
         if not logs:
             raise SystemExit(f"no .eval files in {path}")
         path = logs[-1]
@@ -50,7 +50,9 @@ def main() -> None:
         audited = posthoc_audit(log, args.monitor, audit_budget=budget)
         m = audit_metrics(audited)
         print(f"{budget:>8.3f}  {m.get('safety', float('nan')):>7.3f}  {m.get('audit_budget', float('nan')):>15.4f}")
-        write_eval_log(audited, str(path.with_suffix(f".audit-{budget}.eval")))
+        out = path.parent / "audited" / f"{path.stem}.audit-{budget}.eval"
+        out.parent.mkdir(exist_ok=True)
+        write_eval_log(audited, str(out))
 
 
 if __name__ == "__main__":

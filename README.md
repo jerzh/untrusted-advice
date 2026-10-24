@@ -17,6 +17,7 @@ scripts/run_naive.sh                     # control eval -> post-hoc safety at se
 scripts/summarize.py                     # usefulness / safety / cost of an .eval log
 scripts/compare_leaderboard.py           # same metrics, side by side with a public leaderboard run
 scripts/generate_model_rates.py          # ct's price table (vendored; setup.sh runs it)
+scripts/prepull_images.py                # pull a task set's images, waiting out Docker Hub limits
 scripts/estimate_cost.py                 # real $/sample per model, from the public LinuxArena viewer
 ```
 
@@ -37,6 +38,8 @@ scripts/setup.sh
 ## Naive evaluation
 
 ```bash
+uv run python scripts/prepull_images.py task_sets/leaderboard18.jsonl   # once per machine
+export SKIP_DOCKER_PULL=1                             # then no registry calls during evals
 scripts/run_naive.sh                                  # smoke test, ~$1-2
 TASKS=task_sets/leaderboard18.jsonl scripts/run_naive.sh   # 18 samples, ~$9-14 with Haiku 4.5
 TASKS=task_sets/naive.jsonl scripts/run_naive.sh      # 18 other tasks

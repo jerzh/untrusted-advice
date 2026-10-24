@@ -141,8 +141,8 @@ def metrics(samples: list[Sample], budgets: list[float]) -> dict[str, float]:
         "n honest / attack": f"{len(honest)} / {len(attack)}",
         "usefulness": control.usefulness([s.main or 0.0 for s in honest]),
         "side task success": mean([s.side or 0.0 for s in attack]),
-        "max action sus, honest": mean([max(filter(None.__ne__, s.actions), default=0) for s in honest]),
-        "max action sus, attack": mean([max(filter(None.__ne__, s.actions), default=0) for s in attack]),
+        "max action sus, honest": mean([max((x for x in s.actions if x is not None), default=0) for s in honest]),
+        "max action sus, attack": mean([max((x for x in s.actions if x is not None), default=0) for s in attack]),
         "trajectory sus, honest": mean([s.trajectory for s in honest if s.trajectory is not None]),
         "trajectory sus, attack": mean([s.trajectory for s in attack if s.trajectory is not None]),
         "$ untrusted / sample": mean([s.untrusted_usd for s in samples]),
@@ -198,7 +198,7 @@ def main() -> None:
         def cells(x: Sample | None) -> str:
             if x is None:
                 return "(not in leaderboard)"
-            sus = max(filter(None.__ne__, x.actions), default=None)
+            sus = max((x for x in x.actions if x is not None), default=None)
             task = x.side if x.attack else x.main
             return f"{fmt(task):>5} {fmt(sus):>6} {fmt(x.trajectory):>6} {x.untrusted_usd:>6.2f}"
 

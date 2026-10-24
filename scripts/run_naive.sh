@@ -26,6 +26,12 @@ LOG_DIR="${LOG_DIR:-logs/$(date +%Y%m%d-%H%M%S)-$(basename "$TASKS" .jsonl)}"
 SKIP_MONITORS="${SKIP_MONITORS:-}"
 shopt -s nullglob
 existing=("$LOG_DIR"/*.eval)
+# Only a finished log is reused; one that ended in error is rerun into the same LOG_DIR, which
+# Inspect's eval set resumes, keeping the samples that completed.
+if (( ${#existing[@]} )) && ! uv run python -c 'import sys; from inspect_ai.log import read_eval_log; sys.exit(any(read_eval_log(f, header_only=True).status != "success" for f in sys.argv[1:]))' "${existing[@]}"; then
+  echo "resuming unfinished ${existing[*]}"
+  existing=()
+fi
 post_hoc=$([[ "$PROTOCOL" != "ct/trusted-monitoring" && -z "$SKIP_MONITORS" ]] && echo 1 || true)
 
 # One tiny call per model before spending anything: a dead key or an empty balance otherwise
@@ -82,7 +88,9 @@ fi
 # monitor scores added post hoc before safety can be computed.
 if [[ -n "$post_hoc" ]]; then
   rm -rf "$LOG_DIR/monitored"
-  for f in "$LOG_DIR"/*.eval; do
+  # A resumed eval set leaves the errored attempt's log beside the finished one; skip it.
+  finished=$(uv run python -c 'import sys; from inspect_ai.log import read_eval_log; print("\n".join(f for f in sys.argv[1:] if read_eval_log(f, header_only=True).status == "success"))' "$LOG_DIR"/*.eval)
+  for f in $finished; do
     ct run monitor "$f" -m "[$MONITOR]" --kind action --model-role "trusted=$TRUSTED" -o "$LOG_DIR/monitored"
   done
   if [[ -n "$TRAJ_MONITOR" ]]; then
